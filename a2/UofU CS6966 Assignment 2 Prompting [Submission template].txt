@@ -1,0 +1,39 @@
+﻿Assignment 2: Prompting
+Assignment by [add your name]
+
+
+Github repo: [add a link to your repo]
+IDEFICS
+
+
+Explanation 1:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+Explanation 2:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+Explanation 3:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+Explanation 4: [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+Explanation 5:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+LLaMA-v2
+
+
+Explanation 1:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+Explanation 2:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+Explanation 3:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+Explanation 4: [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+
+
+Explanation 5:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong]
