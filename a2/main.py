@@ -46,7 +46,7 @@ def newyorker_caption_contest_data(task_name, subtask):
 
 
 def main(
-    seed: int = 42,
+    seed: int = 42, # i know i'm meant to use my uid but this is a public github repo
     task_name: str = "jmhessel/newyorker_caption_contest",
     subtask: str = "explanation",
     mmllm_model_name_or_path: str = "HuggingFaceM4/idefics-9b-instruct",
@@ -231,10 +231,8 @@ def main(
 
     sequences = tokenizer.batch_decode(generated_ids)
 
-    import bpdb
-    bpdb.set_trace()
-    gen_expl = sequences[0]["generated_text"].split("/INST] ")[-1]
-    nyc_data_five_val["generated_llama2"] = gen_expl
+    for i, seq in enumerate(sequences):
+        nyc_data_five_val[i]['generated_llama2'] = seq
 
     filename = "out/val.jsonl"
     with jsonlines.open(filename, mode="w") as writer:

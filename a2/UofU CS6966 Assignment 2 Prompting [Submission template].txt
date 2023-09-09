@@ -1,8 +1,8 @@
 ﻿Assignment 2: Prompting
-Assignment by [add your name]
+Assignment by Adam Colton
 
 
-Github repo: [add a link to your repo]
+Github repo: https://github.com/theAdamColton/local-exp-course/
 IDEFICS
 
 
