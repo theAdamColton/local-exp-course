@@ -1,7 +1,7 @@
 import os
 import torch
 import numpy as np
-import jsonlines
+import json
 import random
 from transformers import (
     GenerationConfig,
@@ -90,7 +90,7 @@ def main(
         "User: I have some comics from the New Yorker. ",
         "First, write a short description of the comic. ",
         "This includes the scene, anything uncanny or unusual in the comic, along with any entities/characters in the image. Prefix this with 'Description -'\n",
-        "Next provide an outline of a joke based on what is going on in the comic. Start this as 'Joke outline -'\n",
+        "Next provide a brief description of what ridiculous element of the comic could be used to create a joke. 'Tomfoolery -'\n",
         "Then provide the caption, prefixed by 'Hilarious caption -'. The caption should complement the image as an absolutely histericaly funny punchline.\n",
         "Here is the first comic:\n",
     ]
@@ -100,9 +100,9 @@ def main(
             x['image'],
             "<end_of_utterance>"
             "\nAssistant: ",
-            "Description - " + x['input'].split("description:")[1].split('caption:')[0][:32],
-            "\nJoke outline - ",
-            x['target'][:32],
+            "Description - " + x['input'].split("description:")[1].split('caption:')[0][:128],
+            "\nTomfoolery - ",
+            x['target'][:128],
             "\nHilarious caption - ",
             x['caption_choices'],
             "<end_of_utterance>",
@@ -111,7 +111,7 @@ def main(
     prompts = [
             [
                 *prompt,
-                "\nUser: Zinger! Here is the next comic. Remember to write the 'Description', 'Joke outline', and 'Hilarious caption'.\n",
+                "\nUser: Zinger! Here is the next comic. Remember to write the 'Description', 'Tomfoolery', and 'Hilarious caption'.\n",
                 x['image'],
                 "<end_of_utterance>",
                 "\nAssistant: Description - ",
@@ -130,7 +130,7 @@ def main(
         ["<image>", "<fake_token_around_image>"], add_special_tokens=False
     ).input_ids
 
-    force_words_ids = processor.tokenizer(["Hilarious caption -", "Description -", "Joke outline -"], add_special_tokens=False).input_ids
+    force_words_ids = processor.tokenizer(["Hilarious caption -", "Description -", "Tomfoolery -"], add_special_tokens=False).input_ids
 
     generation_config = GenerationConfig(
             #force_words_ids=force_words_ids,
@@ -160,18 +160,6 @@ def main(
         gen_expl = t.split("Assistant:")[-1]
         nyc_data_five_val[i]["generated_idefics"] = gen_expl
 
-    # ======================> You will need to `mkdir out`
-    filename = "out/val.jsonl"
-    with jsonlines.open(filename, mode="w") as writer:
-        for item in nyc_data_five_val:
-            del item["image"]
-            writer.write(item)
-
-    filename = "out/train.jsonl"
-    with jsonlines.open(filename, mode="w") as writer:
-        for item in nyc_data_train_two:
-            del item["image"]
-            writer.write(item)
 
     model = None
     torch.cuda.empty_cache()
@@ -182,17 +170,6 @@ def main(
         Only the LLM, run over text descriptions
     ====================================================================================================
     """
-
-    print("Loading data")
-    nyc_data_five_val = []
-    with jsonlines.open("out/val.jsonl") as reader:
-        for obj in reader:
-            nyc_data_five_val.append(obj)
-
-    nyc_data_train_two = []
-    with jsonlines.open("out/train.jsonl") as reader:
-        for obj in reader:
-            nyc_data_train_two.append(obj)
 
     print("Loading llm")
     """
@@ -214,6 +191,8 @@ def main(
     """
 
     tokenizer = AutoTokenizer.from_pretrained(llm_model_name_or_path)
+    tokenizer.pad_token = "[PAD]"
+    tokenizer.padding_side = "left"
     model = AutoModelForCausalLM.from_pretrained(
         llm_model_name_or_path,
         torch_dtype=torch.bfloat16,
@@ -224,20 +203,27 @@ def main(
     prompts = [[x for x in prompt if type(x) == str] for prompt in prompts]
     prompts = ["".join(prompt) for prompt in prompts]
     prompts = [prompt.replace("User:", "### User:").replace("Assistant:", "### Assistant:") for prompt in prompts]
-    prompts = [prompt + "Description - " + x['input'].split("description:")[1].split('caption:')[0] for prompt, description in zip(prompts, nyc_data_five_val)]
-    inputs = tokenizer(prompts, return_tensors="pt").to(device)
+    prompts = [prompt + x['input'].split("description:")[1].split('caption:')[0] for prompt, x in zip(prompts, nyc_data_five_val)]
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(device)
+
 
     generated_ids = model.generate(**inputs, max_length=2048)
 
     sequences = tokenizer.batch_decode(generated_ids)
 
     for i, seq in enumerate(sequences):
-        nyc_data_five_val[i]['generated_llama2'] = seq
+        gen_seq = seq.split("Assistant:")[-1]
+        nyc_data_five_val[i]['generated_llama2'] = gen_seq
+        print(i, gen_seq)
+        print()
+
+
+    for x in nyc_data_five_val:
+        del x['image']
 
     filename = "out/val.jsonl"
-    with jsonlines.open(filename, mode="w") as writer:
-        for item in nyc_data_five_val:
-            writer.write(item)
+    with open(filename, "w") as f:
+        json.dump(nyc_data_five_val, f)
 
 
 if __name__ == "__main__":

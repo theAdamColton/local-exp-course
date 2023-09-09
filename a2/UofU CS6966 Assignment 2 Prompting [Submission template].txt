@@ -6,34 +6,71 @@ Github repo: https://github.com/theAdamColton/local-exp-course/
 IDEFICS
 
 
-Explanation 1:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 1: 
+
+This is what was generated: "Description - A man is watching TV while a cat sits on the couch. Tomfoolery - A play on the phrase \"cat's pajamas.\" Hilarious caption -You're not the only one who likes to stay in bed all day." 
+The problem with this is that the cat is peering into the window, and is not sitting on the couch. If the description was correct, the generated caption would be slightly funny I guess.
 
 
-Explanation 2:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 2: 
+
+This is what was generated:  Description -  Three men are sitting in chairs in a doctor's office. Two of the men are wearing hospital gowns.\nTomfoolery - A play on words: the men are in a doctor's office, but they are not sick. They are there for a different reason.\nHilarious caption - We're not sick, we're just here for a checkup.
+
+This is not an accurate description of the image, which is a joke about aesthetic concerns with concrete shoes. The comic has nothing to do with checkups.
 
 
-Explanation 3:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 3: 
+
+ 'Description -  A lion and a lioness are eating a mouse.\nTomfoolery - A play on words: the lions are eating a \"mouse\" instead of a \"lion\"\nHilarious caption -The lions were so hungry, they ate a mouse.'
+
+The description was wrong; they weren't eating a mouse, they were looking at the strew apart bits of a doctor that they just ate. Likewise, the caption was bad.
 
 
-Explanation 4: [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 4: 
+
+'Description - A man is on a raft in the middle of the ocean, with a large wave coming towards him.\nTomfoolery - A play on words: Noah's Ark is a well-known story of a man saving animals from a flood. Here, the man is trying to save himself\nHilarious caption -Noah, are you sure this is a good idea?'
+
+This one isn't bad, but it completely missed that the wave is a caracture of donald trump. It picks up on how the people in the boat are in immediate danger.
 
 
-Explanation 5:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 5:
+
+'Description - A man is lying down in a doctor's office while a doctor looks at him.\nTomfoolery - A play on words: the doctor is looking at the man's x-ray, which shows his skeleton.\nHilarious caption - I'm sorry, sir, but your bones are showing.'
+
+The generation mostly got the content of the image correct. However, the caption was not funny, and there was no play on words, and takes a liberty with what is shown in the comic in the Tomfoolery section, there is no x ray in the comic.
 
 
 LLaMA-v2
 
 
-Explanation 1:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 1: 
+
+'Tomfoolery - A play on the idea of a cat burglar. The cat is not stealing anything, but it's a giant cat, which is unusual.\nHilarious caption - I knew I should have boarded up that window!"'
+This is kinda funny, and relevant to the contents of the comic: the cat and the window.
 
 
-Explanation 2:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 2: 
+
+'Tomfoolery - A play on words: \"cement shoes\" is a mob term for tying someone's feet in concrete and throwing them in a body of water.\nHilarious caption - I'm sorry, but we can't accept returns on these shoes.'
+I think this caption is almost better than the ground truth caption. It's pretty funny, and easier to understand.
 
 
-Explanation 3:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 3:  
+
+'Tomfoolery - A play on words: \"Man-eater\" is a term for a lion that has a taste for human flesh, but here, the lion is a \"physician\" who is preying on the doctor's instruments.\nHilarious caption - I'm sorry, but I can't treat you until I find my stethoscope.'
+
+It's not perfect; I don't get why llama uses the verb 'treat'. It doesn't amount to any play on words or any creative funny content.
 
 
-Explanation 4: [add your analysis of whether the explanation explains the joke, and if not what’s wrong] 
+Explanation 4: 
+
+'Tomfoolery - A play on the idea of the Statue of Liberty being a symbol of hope and freedom, while the wave represents the dangers and challenges that immigrants face.\nHilarious caption - \"Welcome to America, where even the waves want to eat you!'
+
+I like that it is political, like the ground truth caption. But it uses the word 'waves', and doesn't take advantage of the fact that the wave is not a wave, even though it had this explained to it in the description.
 
 
-Explanation 5:  [add your analysis of whether the explanation explains the joke, and if not what’s wrong]
+Explanation 5:  
+
+'Tomfoolery - A play on words: \"Wake\" can be a noun meaning a gathering after a funeral, or a verb meaning to become aware or conscious.\nHilarious caption - I'm sorry, but I can't attend the wake. I have a prior engagement.'
+
+The use of 'wake' as a play on words is a good attempt, but doesn't make much sense. It doesn't make sense in the context of the comic.
