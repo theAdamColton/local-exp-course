@@ -1,16 +1,19 @@
-import numpy as np
+import os
 import torch
+import numpy as np
 import jsonlines
 import random
 from transformers import (
+    GenerationConfig,
     IdeficsForVisionText2Text,
-    AutoProcessor,
+    BitsAndBytesConfig,
     AutoModelForCausalLM,
+    AutoProcessor,
     AutoTokenizer,
 )
-import transformers
 from datasets import load_dataset
 
+torch.set_grad_enabled(False)
 
 def newyorker_caption_contest_data(task_name, subtask):
     dset = load_dataset(task_name, subtask)
@@ -46,10 +49,13 @@ def main(
     seed: int = 42,
     task_name: str = "jmhessel/newyorker_caption_contest",
     subtask: str = "explanation",
-    mllm_model_name_or_path: str = "HuggingFaceM4/idefics-9b-instruct",
-    llm_model_name_or_path: str = "meta-llama/Llama-2-7b-chat-hf",
-    assistant_model_name_or_path: str = "TheBloke/Llama-2-7B-GPTQ",
+    mmllm_model_name_or_path: str = "HuggingFaceM4/idefics-9b-instruct",
+    llm_model_name_or_path: str = "upstage/llama-30b-instruct-2048",
+    quantize_mmllm:bool = False,
+    quantize_llm:bool = True,
+    beams: int = 2,
 ):
+    os.makedirs("./out", exist_ok=True)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
@@ -60,40 +66,61 @@ def main(
         Uses the multimodal model, run over images
     ====================================================================================================
     """
-    print("Loading model")
+    print("Loading mllm")
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
-    model = IdeficsForVisionText2Text.from_pretrained(
-        mllm_model_name_or_path, torch_dtype=torch.bfloat16, device_map="auto",
-    ).to(device)
-    assistant_model = AutoModelForCausalLM.from_pretrained(assistant_model_name_or_path,
-                                             torch_dtype=torch.float16,
-                                             device_map="auto",
-                                             revision="main")
+    bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_compute_dtype=torch.bfloat16,
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_quant_type="nf4",
+    )
 
-    processor = AutoProcessor.from_pretrained(mllm_model_name_or_path)
+    model = IdeficsForVisionText2Text.from_pretrained(
+        mmllm_model_name_or_path, torch_dtype=torch.bfloat16, device_map="auto", quantization_config=bnb_config if quantize_mmllm else None,
+    )
+
+    processor = AutoProcessor.from_pretrained(mmllm_model_name_or_path)
 
     print("Loading data")
     nyc_data_five_val = random.sample(nyc_data["val"], 5)
     nyc_data_train_two = random.sample(nyc_data["train"], 2)
 
-    prompts = []
+    prompt = [
+        "User: I have some comics from the New Yorker. ",
+        "First, write a short description of the comic. ",
+        "This includes the scene, anything uncanny or unusual in the comic, along with any entities/characters in the image. Prefix this with 'Description -'\n",
+        "Next provide an outline of a joke based on what is going on in the comic. Start this as 'Joke outline -'\n",
+        "Then provide the caption, prefixed by 'Hilarious caption -'. The caption should complement the image as an absolutely histericaly funny punchline.\n",
+        "Here is the first comic:\n",
+    ]
+    for i, x in enumerate(nyc_data_train_two):
+        prompt += [
+            "\nUser: Zinger! Here is the next comic:\n" if i > 0 else "",
+            x['image'],
+            "<end_of_utterance>"
+            "\nAssistant: ",
+            "Description - " + x['input'].split("description:")[1].split('caption:')[0][:32],
+            "\nJoke outline - ",
+            x['target'][:32],
+            "\nHilarious caption - ",
+            x['caption_choices'],
+            "<end_of_utterance>",
+        ]
 
+    prompts = [
+            [
+                *prompt,
+                "\nUser: Zinger! Here is the next comic. Remember to write the 'Description', 'Joke outline', and 'Hilarious caption'.\n",
+                x['image'],
+                "<end_of_utterance>",
+                "\nAssistant: Description - ",
+            ]
+            for x in nyc_data_five_val
+        ]
+    
     for val_inst in nyc_data_five_val:
-        # ======================> ADD YOUR CODE TO DEFINE A PROMPT WITH TWO TRAIN EXAMPLES/DEMONSTRATIONS/SHOTS <======================
-        # Each instace has a key 'image' that contains the PIL Image. You will give that to the model as input to "show" it the image instead of an url to the image jpg file.
-
-        prompts.append(["prompt you designed"])
-
-        # I'm saving images to `out`` to be able to see them in the output folder
-        val_inst["image"].save(f"out/{val_inst['instance_id']}.jpg")
-
-    # --batched mode
-    inputs = processor(
-        prompts, add_end_of_utterance_token=False, return_tensors="pt"
-    ).to(device)
-    # --single sample mode
-    # inputs = processor(prompts[0], return_tensors="pt").to(device)
+        val_inst["image"].save(f"out/{val_inst['instance_id']}-{val_inst['caption_choices']}.jpg")
 
     # Generation args
     exit_condition = processor.tokenizer(
@@ -103,14 +130,31 @@ def main(
         ["<image>", "<fake_token_around_image>"], add_special_tokens=False
     ).input_ids
 
-    generated_ids = model.generate(
-        **inputs,
-        eos_token_id=exit_condition,
-        bad_words_ids=bad_words_ids,
-        max_length=1024,
-        assistant_model=assistant_model,
+    force_words_ids = processor.tokenizer(["Hilarious caption -", "Description -", "Joke outline -"], add_special_tokens=False).input_ids
+
+    generation_config = GenerationConfig(
+            #force_words_ids=force_words_ids,
+            num_beams=beams,
     )
-    generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)
+
+    all_generated_ids = []
+
+    for prompt in prompts:
+        inputs = processor([prompt], add_end_of_utterance_token=False, return_tensors="pt").to(device)
+
+        generated_ids = model.generate(
+            **inputs,
+            generation_config=generation_config,
+            eos_token_id=exit_condition,
+            bad_words_ids=bad_words_ids,
+            repetition_penalty=1.5,
+            max_length=1024,
+        )
+
+        all_generated_ids.append(generated_ids.cpu())
+
+    generated_text = [processor.decode(generated_ids[0]) for generated_ids in all_generated_ids]
+
     for i, t in enumerate(generated_text):
         print(f"{i}:\n{t}\n")
         gen_expl = t.split("Assistant:")[-1]
@@ -128,6 +172,9 @@ def main(
         for item in nyc_data_train_two:
             del item["image"]
             writer.write(item)
+
+    model = None
+    torch.cuda.empty_cache()
 
 
     """
@@ -147,9 +194,7 @@ def main(
         for obj in reader:
             nyc_data_train_two.append(obj)
 
-    import torch
-
-    print("Loading model")
+    print("Loading llm")
     """
     Ideally, we'd do something similar to what we have been doing before: 
 
@@ -169,26 +214,27 @@ def main(
     """
 
     tokenizer = AutoTokenizer.from_pretrained(llm_model_name_or_path)
-    pipeline = transformers.pipeline(
-        "text-generation",
-        model=llm_model_name_or_path,
-        torch_dtype=torch.float16,
+    model = AutoModelForCausalLM.from_pretrained(
+        llm_model_name_or_path,
+        torch_dtype=torch.bfloat16,
         device_map="auto",
+        quantization_config=bnb_config if quantize_llm else None,
     )
 
-    for i, val_inst in enumerate(nyc_data_five_val):
-        # ======================> ADD YOUR CODE TO DEFINE A PROMPT WITH TWO TRAIN EXAMPLES/DEMONSTRATIONS/SHOTS <======================
-        prompt = "your prompt"
+    prompts = [[x for x in prompt if type(x) == str] for prompt in prompts]
+    prompts = ["".join(prompt) for prompt in prompts]
+    prompts = [prompt.replace("User:", "### User:").replace("Assistant:", "### Assistant:") for prompt in prompts]
+    prompts = [prompt + "Description - " + x['input'].split("description:")[1].split('caption:')[0] for prompt, description in zip(prompts, nyc_data_five_val)]
+    inputs = tokenizer(prompts, return_tensors="pt").to(device)
 
-        sequences = pipeline(
-            prompt,
-            do_sample=True,
-            eos_token_id=tokenizer.eos_token_id,
-            max_length=1024,
-        )
+    generated_ids = model.generate(**inputs, max_length=2048)
 
-        gen_expl = sequences[0]["generated_text"].split("/INST] ")[-1]
-        nyc_data_five_val[i]["generated_llama2"] = gen_expl
+    sequences = tokenizer.batch_decode(generated_ids)
+
+    import bpdb
+    bpdb.set_trace()
+    gen_expl = sequences[0]["generated_text"].split("/INST] ")[-1]
+    nyc_data_five_val["generated_llama2"] = gen_expl
 
     filename = "out/val.jsonl"
     with jsonlines.open(filename, mode="w") as writer:
@@ -196,9 +242,6 @@ def main(
             writer.write(item)
 
 
-
-
 if __name__ == "__main__":
     import jsonargparse
-
     jsonargparse.CLI(main)
